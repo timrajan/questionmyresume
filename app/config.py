@@ -16,4 +16,8 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_RESUME_CHARS = 20_000
 MAX_JOB_CHARS = 15_000
 
+# Per-IP limits (requests per hour). 0 disables a limit.
+RATE_LIMIT_ANALYSES_PER_HOUR = int(os.getenv("RATE_LIMIT_ANALYSES_PER_HOUR", "5"))
+RATE_LIMIT_VALIDATIONS_PER_HOUR = int(os.getenv("RATE_LIMIT_VALIDATIONS_PER_HOUR", "20"))
+
 STATIC_DIR = Path(__file__).parent / "static"

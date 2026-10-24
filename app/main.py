@@ -5,13 +5,14 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import config
 from .job_fetcher import JobFetchError, JobPage, fetch_job_page, page_from_text
 from .llm import LLMError, classify_job_posting, judge_resume
+from .rate_limit import RateLimiter, client_ip
 from .resume_parser import ResumeParseError, extract_text
 
 logger = logging.getLogger("uvicorn.error")
@@ -21,6 +22,11 @@ app = FastAPI(title="QuestionMyResume")
 # Validated job postings, keyed by job_id, so /api/analyze doesn't re-fetch the page.
 JOB_TTL_SECONDS = 60 * 60
 _jobs: dict[str, tuple[float, JobPage]] = {}
+
+# Every DeepSeek call costs money, so cap each visitor's usage.
+HOUR = 60 * 60
+validate_limiter = RateLimiter(config.RATE_LIMIT_VALIDATIONS_PER_HOUR, HOUR, "job link checks")
+analyze_limiter = RateLimiter(config.RATE_LIMIT_ANALYSES_PER_HOUR, HOUR, "resume analyses")
 
 
 MIN_PASTED_CHARS = 200
@@ -33,7 +39,8 @@ class ValidateJobRequest(BaseModel):
 
 
 @app.post("/api/validate-job")
-async def validate_job(req: ValidateJobRequest):
+async def validate_job(req: ValidateJobRequest, request: Request):
+    validate_limiter.check(client_ip(request))
     try:
         if req.description.strip():
             if len(req.description.strip()) < MIN_PASTED_CHARS:
@@ -64,7 +71,7 @@ async def validate_job(req: ValidateJobRequest):
 
 
 @app.post("/api/analyze")
-async def analyze(resume: UploadFile = File(...), job_id: str = Form(...)):
+async def analyze(request: Request, resume: UploadFile = File(...), job_id: str = Form(...)):
     if Path(resume.filename or "").suffix.lower() not in config.ALLOWED_EXTENSIONS:
         raise HTTPException(415, "Only PDF, TXT, DOC and DOCX files are allowed.")
 
@@ -78,6 +85,8 @@ async def analyze(resume: UploadFile = File(...), job_id: str = Form(...)):
 
     try:
         resume_text = extract_text(resume.filename, data)
+        # Checked last, so a bad file or expired job doesn't use up an analysis.
+        analyze_limiter.check(client_ip(request))
         return await judge_resume(resume_text, entry[1])
     except ResumeParseError as exc:
         raise HTTPException(422, str(exc))

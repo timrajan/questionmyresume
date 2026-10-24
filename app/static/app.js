@@ -99,7 +99,7 @@ form.addEventListener("submit", async (e) => {
     const report = await request("/api/analyze", { method: "POST", body });
     renderReport(report);
   } catch (err) {
-    showError("Something went wrong", err.message);
+    showError(err.code === "rate_limited" ? "Usage limit reached" : "Something went wrong", err.message);
   } finally {
     setBusy(false);
     progress.hidden = true;

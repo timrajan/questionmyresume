@@ -124,6 +124,7 @@ questionmyresume/
 │   ├── llm.py             DeepSeek client, job classification, resume judgement,
 │   │                      response normalisation
 │   ├── prompts.py         The system prompts and JSON shape the model must return
+│   ├── rate_limit.py      Per-IP sliding-window rate limiter
 │   └── static/
 │       ├── index.html     The single page: upload form, progress, results
 │       ├── styles.css     Theme (warm neutral palette, light + dark mode)
@@ -179,6 +180,8 @@ deployed**.
 | `DEEPSEEK_MODEL` | No | `deepseek-chat` | Model name |
 | `DEEPSEEK_BASE_URL` | No | `https://api.deepseek.com` | API endpoint |
 | `PORT` | No | `8000` | Port to listen on (set automatically by Railway) |
+| `RATE_LIMIT_ANALYSES_PER_HOUR` | No | `5` | Resume analyses allowed per IP per hour (`0` = unlimited) |
+| `RATE_LIMIT_VALIDATIONS_PER_HOUR` | No | `20` | Job link checks allowed per IP per hour (`0` = unlimited) |
 
 Limits live in `app/config.py`: 5 MB upload size, and resume and job text truncated to 20k and 15k characters
 before they're sent to the model.
@@ -242,7 +245,7 @@ Returns the report:
 ```
 
 Errors: `415` wrong file type, `413` file too large, `404` `job_id` expired (validate again), `422` the resume
-couldn't be read, `502` DeepSeek error.
+couldn't be read, `429` rate limit reached, `502` DeepSeek error.
 
 Interactive API docs are generated automatically at **`/docs`**.
 
@@ -315,6 +318,7 @@ The tests don't call DeepSeek or need an API key.
 | *"This is a job search results list…"* | You linked a list of jobs, not one job. | Open the specific job and copy that URL. |
 | *"Couldn't find enough text in the resume"* | Scanned or image-only PDF. | Export the resume as a text-based PDF or DOCX. |
 | *"The job posting session expired"* | More than an hour passed between the two steps, or the server restarted. | Click **Judge my resume** again. |
+| *"You've reached the limit of … per hour"* | Per-IP rate limit (5 analyses / 20 link checks per hour). | Wait for the time shown, or raise the limits with the `RATE_LIMIT_*` variables. |
 | *"DEEPSEEK_API_KEY is not set"* | Missing key. | Add it to `.env` (local) or `railway variables` (hosted). |
 
 Results come from an AI model, so wording and scores can vary a little between runs. Treat them as a sharp second
@@ -332,15 +336,20 @@ opinion, not a verdict.
   capped at 5 MB, and the page inserts text safely so no AI output is injected as HTML.
 - **Privacy:** resumes aren't saved to disk or a database. The resume text *is* sent to DeepSeek's API for analysis;
   check DeepSeek's data and privacy terms on [deepseek.com](https://www.deepseek.com/).
-- **Cost:** the public URL has no login or rate limit, so anyone with the link spends your DeepSeek credits. Add a
-  per-IP rate limit or a simple password if you share it widely.
+- **Rate limiting:** each IP gets 5 resume analyses and 20 job link checks per hour, which caps how much of your
+  DeepSeek credit any one visitor can spend. An analysis only counts once the resume has passed the file checks,
+  so a rejected file doesn't use up the quota. Over the limit, the API returns `429` with a `Retry-After` header.
+  - The visitor's IP comes from Railway's `X-Real-IP` header, which Railway overwrites, so visitors can't forge it.
+    Locally the plain connection address is used. On a different host, check which header its proxy sets.
+  - Counts are kept in memory, so they reset whenever the app restarts or redeploys, and each replica has its
+    own. Fine for one instance; use Redis if you scale out.
 
 ---
 
 ## Ideas for the future
 
 - Download the report as a PDF
-- Per-IP rate limiting / optional access password
+- Optional access password, or a daily spend cap across all visitors
 - Side-by-side "before vs. after" score when you re-upload an improved resume
 - Rewrite the whole resume section by section for the target role
 - Cover letter generated from the identified gaps
