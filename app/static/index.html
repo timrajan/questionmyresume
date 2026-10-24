@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuestionMyResume</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>QuestionMyResume</h1>
+    <span class="pill">Powered by DeepSeek</span>
+  </header>
+
+  <main class="container">
+    <div class="lead">
+      <h2>Why would this resume get rejected?</h2>
+      <p>Generic critique gets you generic fixes. Upload your resume and the job posting you're targeting, and get the
+         gaps against that one specific role: a match score, the top three reasons you'd be screened out, and three
+         rewritten bullets that land harder.</p>
+    </div>
+
+    <div class="flow" aria-label="How it works">
+      <span class="step"><b>Resume</b> upload</span><span class="arrow">→</span>
+      <span class="step"><b>Job URL</b> verified</span><span class="arrow">→</span>
+      <span class="step"><b>DeepSeek</b> judges the fit</span><span class="arrow">→</span>
+      <span class="step"><b>Scorecard</b> + fixes</span>
+    </div>
+
+    <form id="form" class="card form-card" novalidate>
+      <div class="field">
+        <label class="label" for="file-input">1. Your resume</label>
+        <label id="dropzone" class="dropzone" for="file-input">
+          <input id="file-input" type="file" accept=".pdf,.txt,.doc,.docx" hidden>
+          <span class="dz-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
+          </span>
+          <span id="dz-text" class="dz-text"><strong>Click to upload</strong> or drag and drop</span>
+          <span class="dz-hint">PDF, TXT, DOC or DOCX · max 5 MB</span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label class="label" for="url-input">2. Job posting URL</label>
+        <input id="url-input" class="input" type="url" placeholder="https://company.com/careers/senior-engineer" autocomplete="off">
+        <button id="paste-toggle" class="link-btn" type="button">Can't use a link? Paste the job description instead</button>
+      </div>
+
+      <div id="paste-field" class="field" hidden>
+        <label class="label" for="desc-input">Job description</label>
+        <textarea id="desc-input" class="input textarea" rows="8" placeholder="Paste the full job posting text here: title, responsibilities and requirements"></textarea>
+      </div>
+
+      <p id="form-error" class="form-error" role="alert" hidden></p>
+
+      <button id="submit" class="btn-primary" type="submit">Judge my resume</button>
+    </form>
+
+    <section id="progress" class="card progress-card" hidden aria-live="polite">
+      <ol class="steps">
+        <li data-step="validate"><span class="dot"></span>Checking that the URL is a real job posting</li>
+        <li data-step="judge"><span class="dot"></span>Judging your resume against the role</li>
+      </ol>
+      <p class="progress-note">The full analysis usually takes 20–60 seconds.</p>
+    </section>
+
+    <section id="results" hidden></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

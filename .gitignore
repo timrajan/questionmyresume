@@ -1,0 +1,15 @@
+# Secrets: never commit any env file, including the example
+.env
+.env.*
+*.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
